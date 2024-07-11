@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>A Leaflet map!</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+  <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster-src.js"></script>
+  <style>
+    body, html {
+      height: 100%;
+      margin: 0;
+    }
+    #map {
+      height: 90%;
+      width: 100%;
+    }
+    h1 {
+      text-align: center;
+      margin: 0;
+      padding: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>Hotels In Salzburg</h1>
+  <div id="map"></div>
+
+  <script>
+    // Initialize the map
+    var map = L.map('map').setView([47.797413, 13.037246], 12);
+    var OpenStreetMap_Mapnik = L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    });
+    OpenStreetMap_Mapnik.addTo(map);
+
+    // Create a marker cluster group
+    var markers = L.markerClusterGroup({ showCoverageOnHover: false, spiderfyOnMaxZoom: true, zoomToBoundsOnClick: true });
+
+    // Custom icons
+    var customIcon = L.icon({
+      iconUrl: 'placeholder.png',
+      iconSize: [38, 38]
+    });
+
+    var hotelIcon = L.icon({
+      iconUrl: 'placeholder1.png',
+      iconSize: [38, 38]
+    });
+
+   
+
+    // Load GeoJSON data
+    $.getJSON("https://gist.githubusercontent.com/nomaansaleh/5c8d1645cd9558d55c2322f4a3e58c55/raw/c9186e3a472474e4ecb706a94b476da42af2912d/Salzburg_hotels.geojson", function (park) {
+      L.geoJson(park, {
+        pointToLayer: function (feature, latlng) {
+          return L.marker(latlng, { icon: hotelIcon });
+        },
+        onEachFeature: function (feature, layer) {
+          if (feature.properties) {
+            var popupContent = "<b>Name:</b> " + feature.properties.Name + "<br>" +
+                               "<b>Address:</b> " + feature.properties.Address + "<br>" +
+                               "<b>Latitude:</b> " + feature.geometry.coordinates[1] + "<br>" +
+                               "<b>Longitude:</b> " + feature.geometry.coordinates[0] + "<br>" +
+                               "<b>Website:</b> <a href='" + feature.properties.Website + "' target='_blank'>" + feature.properties.Website + "</a>";
+            layer.bindPopup(popupContent);
+          }
+          markers.addLayer(layer);
+        }
+      }).addTo(markers);
+      markers.addTo(map);
+    });
+
+    // Add current location marker
+    function onLocationFound(e) {
+      var radius = e.accuracy / 2;
+
+      L.marker(e.latlng, { icon: customIcon }).addTo(map)
+        .bindPopup("You are within " + radius + " meters from this point").openPopup();
+
+      L.circle(e.latlng, radius).addTo(map);
+    }
+
+    function onLocationError(e) {
+      alert(e.message);
+    }
+
+    map.on('locationfound', onLocationFound);
+    map.on('locationerror', onLocationError);
+
+    map.locate({ setView: true, maxZoom: 12 });
+  </script>
+</body>
+
+</html>
