@@ -1,101 +1,1111 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
-  <title>A Leaflet map!</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-  <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
-  <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster-src.js"></script>
-  <style>
-    body, html {
-      height: 100%;
-      margin: 0;
-    }
-    #map {
-      height: 90%;
-      width: 100%;
-    }
-    h1 {
-      text-align: center;
-      margin: 0;
-      padding: 10px;
-    }
-  </style>
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Salzburg Tourist Hotels | Interactive Web GIS</title>
+
+    <!-- Leaflet -->
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Marker Cluster -->
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            height: 100%;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f5f7fa;
+        }
+
+
+        /* ==============================
+           HEADER
+        ============================== */
+
+        .header {
+            height: 78px;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            border-bottom: 1px solid #dfe3e8;
+        }
+
+        .title h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #1f2937;
+        }
+
+        .title p {
+            margin: 5px 0 0;
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+
+        /* Hotel counter */
+
+        .hotel-counter {
+            background: #f1f5f9;
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 14px;
+            color: #374151;
+            white-space: nowrap;
+        }
+
+        .hotel-counter strong {
+            font-size: 18px;
+            color: #111827;
+        }
+
+
+        /* ==============================
+           MAP
+        ============================== */
+
+        #map {
+            width: 100%;
+            height: calc(100vh - 78px);
+        }
+
+
+        /* ==============================
+           LOADING MESSAGE
+        ============================== */
+
+        .status-box {
+            position: absolute;
+            z-index: 1000;
+            top: 95px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 10px 18px;
+            border-radius: 6px;
+            box-shadow: 0 2px 10px rgba(0,0,0,.15);
+            font-size: 14px;
+        }
+
+
+        /* ==============================
+           LOCATE BUTTON
+        ============================== */
+
+        .locate-button {
+            background: white;
+            border: none;
+            width: 38px;
+            height: 38px;
+            font-size: 20px;
+            cursor: pointer;
+            border-radius: 4px;
+            box-shadow: 0 1px 5px rgba(0,0,0,.35);
+        }
+
+        .locate-button:hover {
+            background: #f3f4f6;
+        }
+
+
+        /* ==============================
+           POPUPS
+        ============================== */
+
+        .hotel-popup {
+            min-width: 210px;
+        }
+
+        .hotel-popup h3 {
+            margin: 0 0 8px;
+            color: #1f2937;
+            font-size: 17px;
+        }
+
+        .hotel-popup p {
+            margin: 5px 0;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .hotel-popup a {
+            color: #2563eb;
+            text-decoration: none;
+        }
+
+        .hotel-popup a:hover {
+            text-decoration: underline;
+        }
+
+
+        /* ==============================
+           MOBILE
+        ============================== */
+
+        @media (max-width: 700px) {
+
+            .header {
+                height: auto;
+                padding: 12px 15px;
+                align-items: flex-start;
+            }
+
+            .title h1 {
+                font-size: 19px;
+            }
+
+            .title p {
+                font-size: 11px;
+            }
+
+            .hotel-counter {
+                margin-left: 10px;
+                padding: 7px 10px;
+            }
+
+            #map {
+                height: calc(100vh - 75px);
+            }
+        }
+
+    </style>
+
 </head>
+
 
 <body>
 
-  <h1>Hotels In Salzburg</h1>
-  <div id="map"></div>
 
-  <script>
-    // Initialize the map
-    var map = L.map('map').setView([47.797413, 13.037246], 12);
-    var OpenStreetMap_Mapnik = L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', {
-      maxZoom: 18,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+<!-- ==============================
+     HEADER
+============================== -->
+
+<div class="header">
+
+    <div class="title">
+
+        <h1>Salzburg Tourist Hotels</h1>
+
+        <p>
+            Interactive Web GIS using OpenStreetMap and Overpass API
+        </p>
+
+    </div>
+
+
+    <div class="hotel-counter">
+
+        Hotels:
+        <strong id="hotelCount">...</strong>
+
+    </div>
+
+</div>
+
+
+
+<div id="status"
+     class="status-box">
+
+    Loading hotel data from OpenStreetMap...
+
+</div>
+
+
+<div id="map"></div>
+
+
+
+<script>
+
+
+/* =========================================================
+   1. INITIALIZE MAP
+========================================================= */
+
+const map = L.map("map", {
+    zoomControl: true
+}).setView(
+    [47.797413, 13.047246],
+    12
+);
+
+
+
+/* =========================================================
+   2. BASEMAPS
+========================================================= */
+
+const osm = L.tileLayer(
+
+    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+
+    {
+        maxZoom: 19,
+
+        attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }
+
+).addTo(map);
+
+
+
+const humanitarian = L.tileLayer(
+
+    "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
+
+    {
+        maxZoom: 19,
+
+        attribution:
+            '&copy; OpenStreetMap contributors, Tiles style by HOT'
+    }
+
+);
+
+
+
+L.control.layers({
+
+    "OpenStreetMap": osm,
+
+    "Humanitarian": humanitarian
+
+}).addTo(map);
+
+
+
+/* =========================================================
+   3. CUSTOM ICONS
+========================================================= */
+
+
+/* Hotel icon */
+
+const hotelIcon = L.icon({
+
+    iconUrl:
+        "assets/images/hotel-marker.png",
+
+    iconSize:
+        [40, 40],
+
+    iconAnchor:
+        [20, 20],
+
+    popupAnchor:
+        [0, -20]
+
+});
+
+
+
+/* Current location */
+
+const currentLocationIcon = L.icon({
+
+    iconUrl:
+        "assets/images/current-location.png",
+
+    iconSize:
+        [34, 42],
+
+    iconAnchor:
+        [17, 42],
+
+    popupAnchor:
+        [0, -40]
+
+});
+
+
+
+/* =========================================================
+   4. MARKER CLUSTER
+========================================================= */
+
+const hotelMarkers =
+    L.markerClusterGroup({
+
+        showCoverageOnHover: false,
+
+        spiderfyOnMaxZoom: true,
+
+        zoomToBoundsOnClick: true,
+
+        maxClusterRadius: 50
+
     });
-    OpenStreetMap_Mapnik.addTo(map);
 
-    // Create a marker cluster group
-    var markers = L.markerClusterGroup({ showCoverageOnHover: false, spiderfyOnMaxZoom: true, zoomToBoundsOnClick: true });
 
-    // Custom icons
-    var customIcon = L.icon({
-      iconUrl: 'placeholder.png',
-      iconSize: [38, 38]
-    });
+map.addLayer(hotelMarkers);
 
-    var hotelIcon = L.icon({
-      iconUrl: 'placeholder1.png',
-      iconSize: [38, 38]
-    });
 
-   
 
-    // Load GeoJSON data
-    $.getJSON("https://gist.githubusercontent.com/nomaansaleh/5c8d1645cd9558d55c2322f4a3e58c55/raw/c9186e3a472474e4ecb706a94b476da42af2912d/Salzburg_hotels.geojson", function (park) {
-      L.geoJson(park, {
-        pointToLayer: function (feature, latlng) {
-          return L.marker(latlng, { icon: hotelIcon });
-        },
-        onEachFeature: function (feature, layer) {
-          if (feature.properties) {
-            var popupContent = "<b>Name:</b> " + feature.properties.Name + "<br>" +
-                               "<b>Address:</b> " + feature.properties.Address + "<br>" +
-                               "<b>Latitude:</b> " + feature.geometry.coordinates[1] + "<br>" +
-                               "<b>Longitude:</b> " + feature.geometry.coordinates[0] + "<br>" +
-                               "<b>Website:</b> <a href='" + feature.properties.Website + "' target='_blank'>" + feature.properties.Website + "</a>";
-            layer.bindPopup(popupContent);
-          }
-          markers.addLayer(layer);
+/* =========================================================
+   5. OVERPASS QUERY
+========================================================= */
+
+
+const overpassQuery = `
+
+[out:json][timeout:25];
+
+(
+
+node["tourism"="hotel"]
+(47.72,12.95,47.88,13.15);
+
+way["tourism"="hotel"]
+(47.72,12.95,47.88,13.15);
+
+relation["tourism"="hotel"]
+(47.72,12.95,47.88,13.15);
+
+);
+
+out center tags;
+
+`;
+
+
+
+const overpassURL =
+    "https://overpass.kumi.systems/api/interpreter?data=" +
+    encodeURIComponent(overpassQuery);
+
+
+
+/* =========================================================
+   6. LOAD HOTEL DATA
+========================================================= */
+
+
+fetch(overpassURL)
+
+.then(response => {
+
+    if (!response.ok) {
+
+        throw new Error(
+            "Overpass API request failed"
+        );
+
+    }
+
+    return response.json();
+
+})
+
+
+.then(data => {
+
+
+    let hotelCount = 0;
+
+
+    data.elements.forEach(element => {
+
+
+        /* ------------------------------
+           Coordinates
+        ------------------------------ */
+
+        let lat;
+        let lon;
+
+
+        if (
+            element.type === "node"
+        ) {
+
+            lat = element.lat;
+            lon = element.lon;
+
         }
-      }).addTo(markers);
-      markers.addTo(map);
+
+        else if (
+            element.center
+        ) {
+
+            lat = element.center.lat;
+            lon = element.center.lon;
+
+        }
+
+
+        if (
+            lat === undefined ||
+            lon === undefined
+        ) {
+
+            return;
+
+        }
+
+
+
+        const tags =
+            element.tags || {};
+
+
+
+        /* ------------------------------
+           Hotel name
+        ------------------------------ */
+
+        const name =
+            tags.name ||
+            tags["name:en"] ||
+            "Hotel";
+
+
+
+        /* ------------------------------
+           Address
+        ------------------------------ */
+
+        let addressParts = [];
+
+
+        if (tags["addr:street"]) {
+
+            let street =
+                tags["addr:street"];
+
+            if (tags["addr:housenumber"]) {
+
+                street +=
+                    " " +
+                    tags["addr:housenumber"];
+
+            }
+
+            addressParts.push(street);
+
+        }
+
+
+        if (tags["addr:postcode"]) {
+
+            addressParts.push(
+                tags["addr:postcode"]
+            );
+
+        }
+
+
+        if (tags["addr:city"]) {
+
+            addressParts.push(
+                tags["addr:city"]
+            );
+
+        }
+
+
+        const address =
+            addressParts.length
+                ? addressParts.join(", ")
+                : "Address not available";
+
+
+
+        /* ------------------------------
+           Website
+        ------------------------------ */
+
+        let website =
+            tags.website ||
+            tags["contact:website"] ||
+            null;
+
+
+
+        /* ------------------------------
+           Phone
+        ------------------------------ */
+
+        let phone =
+            tags.phone ||
+            tags["contact:phone"] ||
+            null;
+
+
+
+        /* ------------------------------
+           Stars
+        ------------------------------ */
+
+        const stars =
+            tags.stars || null;
+
+
+
+        /* ------------------------------
+           OSM URL
+        ------------------------------ */
+
+        const osmURL =
+
+            "https://www.openstreetmap.org/" +
+
+            element.type +
+
+            "/" +
+
+            element.id;
+
+
+
+        /* ------------------------------
+           Popup
+        ------------------------------ */
+
+
+        let popup = `
+
+        <div class="hotel-popup">
+
+            <h3>🏨 ${escapeHTML(name)}</h3>
+
+            <p>
+                <strong>Address:</strong><br>
+                ${escapeHTML(address)}
+            </p>
+
+        `;
+
+
+
+        if (stars) {
+
+            popup += `
+
+            <p>
+                <strong>Stars:</strong>
+                ${escapeHTML(stars)}
+            </p>
+
+            `;
+
+        }
+
+
+
+        if (phone) {
+
+            popup += `
+
+            <p>
+                <strong>Phone:</strong><br>
+                ${escapeHTML(phone)}
+            </p>
+
+            `;
+
+        }
+
+
+
+        if (website) {
+
+            const safeWebsite =
+                safeURL(website);
+
+            if (safeWebsite) {
+
+                popup += `
+
+                <p>
+                    <strong>Website:</strong><br>
+
+                    <a href="${safeWebsite}"
+                       target="_blank"
+                       rel="noopener noreferrer">
+
+                       Visit hotel website
+
+                    </a>
+
+                </p>
+
+                `;
+
+            }
+
+        }
+
+
+
+        popup += `
+
+            <p>
+
+                <a href="${osmURL}"
+                   target="_blank"
+                   rel="noopener noreferrer">
+
+                   View on OpenStreetMap
+
+                </a>
+
+            </p>
+
+        </div>
+
+        `;
+
+
+
+        /* ------------------------------
+           Create marker
+        ------------------------------ */
+
+
+        const marker =
+
+            L.marker(
+
+                [lat, lon],
+
+                {
+                    icon: hotelIcon,
+
+                    title: name
+                }
+
+            );
+
+
+        marker.bindPopup(
+            popup,
+            {
+                maxWidth: 300
+            }
+        );
+
+
+        hotelMarkers.addLayer(
+            marker
+        );
+
+
+        hotelCount++;
+
     });
 
-    // Add current location marker
-    function onLocationFound(e) {
-      var radius = e.accuracy / 2;
 
-      L.marker(e.latlng, { icon: customIcon }).addTo(map)
-        .bindPopup("You are within " + radius + " meters from this point").openPopup();
 
-      L.circle(e.latlng, radius).addTo(map);
+    /* =====================================================
+       UPDATE COUNTER
+    ===================================================== */
+
+
+    document.getElementById(
+        "hotelCount"
+    ).textContent =
+        hotelCount;
+
+
+
+    /* =====================================================
+       HIDE LOADING MESSAGE
+    ===================================================== */
+
+
+    const status =
+        document.getElementById(
+            "status"
+        );
+
+
+    status.style.display =
+        "none";
+
+
+
+    /* =====================================================
+       FIT MAP TO RESULTS
+    ===================================================== */
+
+
+    if (
+        hotelMarkers.getLayers().length
+        > 0
+    ) {
+
+        map.fitBounds(
+
+            hotelMarkers.getBounds(),
+
+            {
+                padding:
+                    [35, 35],
+
+                maxZoom:
+                    13
+            }
+
+        );
+
     }
 
-    function onLocationError(e) {
-      alert(e.message);
+
+})
+
+
+.catch(error => {
+
+
+    console.error(
+        error
+    );
+
+
+    document.getElementById(
+        "hotelCount"
+    ).textContent =
+        "—";
+
+
+    const status =
+        document.getElementById(
+            "status"
+        );
+
+
+    status.innerHTML =
+        "Hotel data could not be loaded. Please try again later.";
+
+
+});
+
+
+
+/* =========================================================
+   7. CURRENT LOCATION
+========================================================= */
+
+
+let locationMarker = null;
+let accuracyCircle = null;
+
+
+
+function locateUser() {
+
+
+    map.locate({
+
+        setView: true,
+
+        maxZoom: 15,
+
+        enableHighAccuracy: true
+
+    });
+
+}
+
+
+
+/* Location found */
+
+map.on(
+    "locationfound",
+
+    function(e) {
+
+
+        if (locationMarker) {
+
+            map.removeLayer(
+                locationMarker
+            );
+
+        }
+
+
+        if (accuracyCircle) {
+
+            map.removeLayer(
+                accuracyCircle
+            );
+
+        }
+
+
+
+        locationMarker =
+
+            L.marker(
+
+                e.latlng,
+
+                {
+                    icon:
+                        currentLocationIcon,
+
+                    zIndexOffset:
+                        1000
+                }
+
+            )
+
+            .addTo(map)
+
+            .bindPopup(
+
+                "<strong>Your current location</strong><br>" +
+
+                "Accuracy: approximately " +
+
+                Math.round(e.accuracy) +
+
+                " metres"
+
+            )
+
+            .openPopup();
+
+
+
+        accuracyCircle =
+
+            L.circle(
+
+                e.latlng,
+
+                {
+
+                    radius:
+                        e.accuracy,
+
+                    weight:
+                        1,
+
+                    fillOpacity:
+                        0.08
+
+                }
+
+            )
+
+            .addTo(map);
+
+
     }
 
-    map.on('locationfound', onLocationFound);
-    map.on('locationerror', onLocationError);
+);
 
-    map.locate({ setView: true, maxZoom: 12 });
-  </script>
+
+
+/* Location error */
+
+map.on(
+    "locationerror",
+
+    function(e) {
+
+        alert(
+
+            "Your location could not be detected. " +
+
+            "Please allow location access in your browser."
+
+        );
+
+    }
+
+);
+
+
+
+/* =========================================================
+   8. CUSTOM LOCATE CONTROL
+========================================================= */
+
+
+const LocateControl =
+
+    L.Control.extend({
+
+        options: {
+
+            position:
+                "topleft"
+
+        },
+
+
+        onAdd:
+            function() {
+
+
+                const container =
+
+                    L.DomUtil.create(
+                        "div",
+                        "leaflet-bar"
+                    );
+
+
+                const button =
+
+                    L.DomUtil.create(
+                        "button",
+                        "locate-button",
+                        container
+                    );
+
+
+                button.innerHTML =
+                    "⌖";
+
+
+                button.title =
+                    "Show my location";
+
+
+                button.setAttribute(
+                    "aria-label",
+                    "Show my current location"
+                );
+
+
+                L.DomEvent.disableClickPropagation(
+                    container
+                );
+
+
+                L.DomEvent.on(
+
+                    button,
+
+                    "click",
+
+                    function(e) {
+
+                        L.DomEvent.stop(e);
+
+                        locateUser();
+
+                    }
+
+                );
+
+
+                return container;
+
+            }
+
+    });
+
+
+
+map.addControl(
+    new LocateControl()
+);
+
+
+
+/* =========================================================
+   9. SECURITY / TEXT HELPERS
+========================================================= */
+
+
+function escapeHTML(value) {
+
+    return String(value)
+
+        .replaceAll("&", "&amp;")
+
+        .replaceAll("<", "&lt;")
+
+        .replaceAll(">", "&gt;")
+
+        .replaceAll('"', "&quot;")
+
+        .replaceAll("'", "&#039;");
+
+}
+
+
+
+function safeURL(value) {
+
+    try {
+
+        let url =
+            String(value).trim();
+
+
+        if (
+            !/^https?:\/\//i.test(url)
+        ) {
+
+            url =
+                "https://" + url;
+
+        }
+
+
+        const parsed =
+            new URL(url);
+
+
+        if (
+            parsed.protocol !== "http:" &&
+            parsed.protocol !== "https:"
+        ) {
+
+            return null;
+
+        }
+
+
+        return parsed.href;
+
+    }
+
+    catch {
+
+        return null;
+
+    }
+
+}
+
+
+</script>
+
+
 </body>
 
 </html>
