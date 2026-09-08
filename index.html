@@ -1,0 +1,1748 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Salzburg Tourist Hotels | Interactive Web GIS</title>
+
+    <!-- Leaflet -->
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Marker Cluster -->
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f4f6f8;
+        }
+
+        /* ============================
+           HEADER
+        ============================ */
+
+        #header {
+            min-height: 92px;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 15px 30px;
+            border-bottom: 1px solid #dfe5eb;
+            position: relative;
+            z-index: 1000;
+        }
+
+        #titleArea h1 {
+            margin: 0;
+            color: #17324d;
+            font-size: 25px;
+        }
+
+        #titleArea p {
+            margin: 6px 0 0;
+            color: #607080;
+            font-size: 14px;
+        }
+
+        #hotelCounter {
+            background: #edf4f8;
+            color: #17324d;
+            padding: 11px 18px;
+            border-radius: 10px;
+            white-space: nowrap;
+            font-size: 14px;
+        }
+
+        #hotelCounter strong {
+            font-size: 18px;
+        }
+
+
+        /* ============================
+           MAP
+        ============================ */
+
+        #map {
+            height: calc(100vh - 92px);
+            width: 100%;
+        }
+
+
+        /* ============================
+           STATUS MESSAGE
+        ============================ */
+
+        #statusBox {
+            position: absolute;
+            top: 110px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1200;
+
+            background: rgba(255, 255, 255, 0.97);
+            color: #34495e;
+
+            padding: 11px 18px;
+            border-radius: 8px;
+
+            box-shadow: 0 2px 12px rgba(0,0,0,0.16);
+
+            max-width: 90%;
+            text-align: center;
+            font-size: 14px;
+        }
+
+
+        /* ============================
+           POPUPS
+        ============================ */
+
+        .hotel-popup {
+            min-width: 220px;
+            line-height: 1.45;
+        }
+
+        .hotel-popup h3 {
+            margin: 0 0 8px;
+            color: #17324d;
+            font-size: 17px;
+        }
+
+        .hotel-popup p {
+            margin: 5px 0;
+            font-size: 13px;
+        }
+
+        .hotel-popup a {
+            color: #0077b6;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .hotel-popup a:hover {
+            text-decoration: underline;
+        }
+
+        .distance-text {
+            margin-top: 8px !important;
+            padding-top: 7px;
+            border-top: 1px solid #e1e6ea;
+            color: #245c3a;
+            font-weight: 600;
+        }
+
+
+        /* ============================
+           CUSTOM CONTROLS
+        ============================ */
+
+        .custom-map-control {
+            background: #ffffff;
+            width: 42px;
+            height: 42px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 5px;
+
+            box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+
+            cursor: pointer;
+            user-select: none;
+
+            font-size: 21px;
+        }
+
+        .custom-map-control:hover {
+            background: #f2f4f5;
+        }
+
+        .custom-map-control img {
+            width: 28px;
+            height: 28px;
+            object-fit: contain;
+        }
+
+
+        /* ============================
+           MOBILE
+        ============================ */
+
+        @media (max-width: 650px) {
+
+            #header {
+                min-height: 105px;
+                padding: 12px 15px;
+            }
+
+            #titleArea h1 {
+                font-size: 19px;
+            }
+
+            #titleArea p {
+                font-size: 12px;
+                max-width: 230px;
+            }
+
+            #hotelCounter {
+                padding: 9px 11px;
+                font-size: 12px;
+            }
+
+            #hotelCounter strong {
+                font-size: 15px;
+            }
+
+            #map {
+                height: calc(100vh - 105px);
+            }
+
+            #statusBox {
+                top: 122px;
+            }
+        }
+
+    </style>
+</head>
+
+
+<body>
+
+<header id="header">
+
+    <div id="titleArea">
+
+        <h1>Salzburg Tourist Hotels</h1>
+
+        <p>
+            <p>
+    Interactive Web GIS • OpenStreetMap Hotel Data • Salzburg, Austria
+</p>
+        </p>
+
+    </div>
+
+    <div id="hotelCounter">
+        Hotels:
+        <strong id="hotelCount">—</strong>
+    </div>
+
+</header>
+
+
+<div id="statusBox">
+    Loading Salzburg hotel data...
+</div>
+
+
+<div id="map"></div>
+
+
+<script>
+
+/* =========================================================
+   1. MAP INITIALIZATION
+========================================================= */
+
+const SALZBURG_CENTER = [47.7974, 13.0477];
+
+const SALZBURG_ZOOM = 12;
+
+const map = L.map("map", {
+    zoomControl: true
+}).setView(
+    SALZBURG_CENTER,
+    SALZBURG_ZOOM
+);
+
+
+/* =========================================================
+   2. BASEMAPS
+========================================================= */
+
+
+
+/* OpenStreetMap */
+
+const osm = L.tileLayer(
+    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {
+        maxZoom: 19,
+        attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
+    }
+).addTo(map);
+
+
+/* Satellite */
+
+const satellite = L.tileLayer(
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    {
+        maxZoom: 19,
+        attribution:
+            "Tiles &copy; Esri"
+    }
+);
+
+
+const baseMaps = {
+    "OpenStreetMap": osm,
+    "Satellite": satellite
+};
+
+
+L.control.layers(
+    baseMaps,
+    null,
+    {
+        position: "topright",
+        collapsed: true
+    }
+).addTo(map);
+
+
+/* =========================================================
+   3. ICONS
+========================================================= */
+
+const hotelIcon = L.icon({
+
+    iconUrl:
+        "assets/images/hotel-marker.png",
+
+    iconSize:
+        [34, 42],
+
+    iconAnchor:
+        [17, 42],
+
+    popupAnchor:
+        [0, -39]
+
+});
+
+
+const currentLocationIcon = L.icon({
+
+    iconUrl:
+        "assets/images/current-location.png",
+
+    iconSize:
+        [38, 38],
+
+    iconAnchor:
+        [19, 19],
+
+    popupAnchor:
+        [0, -20]
+
+});
+
+
+/* =========================================================
+   4. HOTEL CLUSTER
+========================================================= */
+
+const hotelMarkers = L.markerClusterGroup({
+
+    showCoverageOnHover: false,
+
+    spiderfyOnMaxZoom: true,
+
+    zoomToBoundsOnClick: true,
+
+    maxClusterRadius: 50
+
+});
+
+
+map.addLayer(hotelMarkers);
+
+
+/*
+   Store hotel information separately so that
+   distance from the user's location can later
+   be calculated.
+*/
+
+let hotels = [];
+
+let hotelBounds = null;
+
+
+/* =========================================================
+   5. LOAD LOCAL GEOJSON
+========================================================= */
+
+async function loadHotels() {
+
+    const statusBox =
+        document.getElementById("statusBox");
+
+    const counter =
+        document.getElementById("hotelCount");
+
+
+    try {
+
+        const response =
+            await fetch(
+                "data/salzburg-hotels.geojson"
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Could not load hotel GeoJSON."
+            );
+
+        }
+
+
+        const geojson =
+            await response.json();
+
+
+        if (
+            !geojson.features ||
+            !Array.isArray(geojson.features)
+        ) {
+
+            throw new Error(
+                "Invalid GeoJSON structure."
+            );
+
+        }
+
+
+        hotels = [];
+
+
+        geojson.features.forEach(
+            function(feature) {
+
+
+                if (
+                    !feature.geometry ||
+                    feature.geometry.type !== "Point"
+                ) {
+                    return;
+                }
+
+
+                const coordinates =
+                    feature.geometry.coordinates;
+
+
+                if (
+                    !coordinates ||
+                    coordinates.length < 2
+                ) {
+                    return;
+                }
+
+
+                const lon =
+                    Number(coordinates[0]);
+
+                const lat =
+                    Number(coordinates[1]);
+
+
+                if (
+                    !Number.isFinite(lat) ||
+                    !Number.isFinite(lon)
+                ) {
+                    return;
+                }
+
+
+                const properties =
+                    feature.properties || {};
+
+
+                const hotel = {
+
+                    lat: lat,
+
+                    lon: lon,
+
+                    properties: properties,
+
+                    marker: null,
+
+                    distance: null
+
+                };
+
+
+                const marker =
+                    createHotelMarker(hotel);
+
+
+                hotel.marker =
+                    marker;
+
+
+                hotels.push(
+                    hotel
+                );
+
+
+                hotelMarkers.addLayer(
+                    marker
+                );
+
+            }
+        );
+
+
+        counter.textContent =
+            hotels.length;
+
+
+        if (hotels.length > 0) {
+
+            hotelBounds =
+                hotelMarkers.getBounds();
+
+
+            map.fitBounds(
+                hotelBounds,
+                {
+                    padding:
+                        [35, 35],
+
+                    maxZoom:
+                        13
+                }
+            );
+
+
+            statusBox.innerHTML =
+                "<strong>" +
+                hotels.length +
+                "</strong> Salzburg hotels loaded.";
+
+            statusBox.style.color =
+                "#245c3a";
+
+
+            setTimeout(
+                function() {
+
+                    statusBox.style.display =
+                        "none";
+
+                },
+                2200
+            );
+
+        }
+
+        else {
+
+            counter.textContent =
+                "0";
+
+
+            statusBox.textContent =
+                "No hotel locations were found in the dataset.";
+
+
+            statusBox.style.color =
+                "#a61b1b";
+
+        }
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Hotel data error:",
+            error
+        );
+
+
+        counter.textContent =
+            "—";
+
+
+        statusBox.innerHTML =
+            "Hotel data could not be loaded. " +
+            "If you are opening this file directly from Windows, " +
+            "use VS Code Live Server or GitHub Pages.";
+
+
+        statusBox.style.color =
+            "#a61b1b";
+
+    }
+
+}
+
+
+/* =========================================================
+   6. CREATE HOTEL MARKER
+========================================================= */
+
+function createHotelMarker(hotel) {
+
+    const marker =
+        L.marker(
+            [hotel.lat, hotel.lon],
+            {
+                icon:
+                    hotelIcon
+            }
+        );
+
+
+    marker.bindPopup(
+        function() {
+
+            return createHotelPopup(
+                hotel
+            );
+
+        }
+    );
+
+
+    return marker;
+
+}
+
+
+/* =========================================================
+   7. HOTEL POPUP
+========================================================= */
+
+function createHotelPopup(hotel) {
+
+    const p =
+        hotel.properties || {};
+
+
+    const name =
+        p.name ||
+        p["name:en"] ||
+        "Hotel";
+
+
+    const addressParts = [];
+
+
+    if (p["addr:street"]) {
+
+        let street =
+            p["addr:street"];
+
+
+        if (p["addr:housenumber"]) {
+
+            street +=
+                " " +
+                p["addr:housenumber"];
+
+        }
+
+
+        addressParts.push(
+            street
+        );
+
+    }
+
+
+    if (p["addr:postcode"]) {
+
+        addressParts.push(
+            p["addr:postcode"]
+        );
+
+    }
+
+
+    if (p["addr:city"]) {
+
+        addressParts.push(
+            p["addr:city"]
+        );
+
+    }
+
+
+    const address =
+        addressParts.length
+            ? addressParts.join(", ")
+            : "Address not available in OpenStreetMap";
+
+
+    let website =
+        p.website ||
+        p["contact:website"] ||
+        "";
+
+
+    if (
+        website &&
+        !/^https?:\/\//i.test(website)
+    ) {
+
+        website =
+            "https://" +
+            website;
+
+    }
+
+
+    const phone =
+        p.phone ||
+        p["contact:phone"] ||
+        "";
+
+
+    const stars =
+        p.stars || "";
+
+
+    let html = `
+
+        <div class="hotel-popup">
+
+            <h3>
+                ${escapeHTML(name)}
+            </h3>
+
+            <p>
+                <strong>Address</strong><br>
+                ${escapeHTML(address)}
+            </p>
+
+    `;
+
+
+    if (stars) {
+
+        html += `
+
+            <p>
+                <strong>Category:</strong>
+                ${escapeHTML(stars)} star
+            </p>
+
+        `;
+
+    }
+
+
+    if (phone) {
+
+        html += `
+
+            <p>
+                <strong>Phone:</strong>
+                ${escapeHTML(phone)}
+            </p>
+
+        `;
+
+    }
+
+
+    if (website) {
+
+        html += `
+
+            <p>
+                <a
+                    href="${escapeAttribute(website)}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    Visit hotel website ↗
+                </a>
+            </p>
+
+        `;
+
+    }
+
+
+    if (
+        hotel.distance !== null &&
+        Number.isFinite(hotel.distance)
+    ) {
+
+        html += `
+
+            <p class="distance-text">
+                📍 Approximately
+                ${formatDistance(hotel.distance)}
+                from Device-reported location
+            </p>
+
+        `;
+
+    }
+
+
+    html += `
+
+            <p style="
+                color:#788692;
+                font-size:11px;
+                margin-top:10px;
+            ">
+                Hotel data: OpenStreetMap
+            </p>
+
+        </div>
+
+    `;
+
+
+    return html;
+
+}
+
+
+/* =========================================================
+   8. USER LOCATION
+========================================================= */
+
+let currentLocationMarker =
+    null;
+
+let accuracyCircle =
+    null;
+
+
+/*
+   The browser/device determines the user's
+   coordinates.
+
+   Nothing here is hard-coded to Hallein.
+*/
+
+function locateUser() {
+
+    const statusBox =
+        document.getElementById(
+            "statusBox"
+        );
+
+
+    if (!navigator.geolocation) {
+
+        showStatus(
+            "Your browser does not support geolocation.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    showStatus(
+        "Requesting your current location...",
+        "normal"
+    );
+
+
+    navigator.geolocation.getCurrentPosition(
+
+        handleLocationSuccess,
+
+        handleLocationError,
+
+        {
+            enableHighAccuracy: true,
+
+            timeout: 15000,
+
+            maximumAge: 0
+        }
+
+    );
+
+}
+
+
+/* =========================================================
+   9. LOCATION SUCCESS
+========================================================= */
+
+function handleLocationSuccess(position) {
+
+    const lat =
+        position.coords.latitude;
+
+    const lon =
+        position.coords.longitude;
+
+    const accuracy =
+        position.coords.accuracy;
+
+
+    /*
+       Remove only the PREVIOUS user-location
+       marker.
+
+       Hotel markers are never removed.
+    */
+
+    if (currentLocationMarker) {
+
+        map.removeLayer(
+            currentLocationMarker
+        );
+
+    }
+
+
+    if (accuracyCircle) {
+
+        map.removeLayer(
+            accuracyCircle
+        );
+
+    }
+
+
+    currentLocationMarker =
+        L.marker(
+            [lat, lon],
+            {
+                icon:
+                    currentLocationIcon,
+
+                zIndexOffset:
+                    1000
+            }
+        )
+        .addTo(map);
+
+
+    currentLocationMarker.bindPopup(
+
+        "<strong>Your reported location</strong><br>" +
+
+        "Browser accuracy: approximately " +
+
+        Math.round(accuracy) +
+
+        " metres."
+
+    );
+
+
+    accuracyCircle =
+        L.circle(
+            [lat, lon],
+            {
+                radius:
+                    accuracy
+            }
+        )
+        .addTo(map);
+
+
+    /*
+       Calculate distance to every Salzburg hotel.
+    */
+
+    updateHotelDistances(
+        lat,
+        lon
+    );
+
+
+    /*
+       Find nearest hotel.
+    */
+
+    const nearest =
+        findNearestHotel();
+
+
+    /*
+       Determine whether user is reasonably
+       close to the Salzburg hotel coverage.
+
+       50 km is deliberately generous because
+       visitors may be staying around Salzburg,
+       Hallein or the surrounding region.
+    */
+
+    if (
+        nearest &&
+        nearest.distance <= 50
+    ) {
+
+        /*
+           Show user + nearest hotel together.
+        */
+
+        const groupBounds =
+            L.latLngBounds([
+                [lat, lon],
+                [
+                    nearest.lat,
+                    nearest.lon
+                ]
+            ]);
+
+
+        map.fitBounds(
+            groupBounds,
+            {
+                padding:
+                    [70, 70],
+
+                maxZoom:
+                    14
+            }
+        );
+
+
+        currentLocationMarker
+            .bindPopup(
+
+                "<strong>Your reported location</strong><br>" +
+
+                "Browser accuracy: approximately " +
+
+                Math.round(accuracy) +
+
+                " metres.<br><br>" +
+
+                "<strong>Nearest Salzburg hotel:</strong><br>" +
+
+                escapeHTML(
+                    getHotelName(nearest)
+                ) +
+
+                "<br>" +
+
+                formatDistance(
+                    nearest.distance
+                )
+
+            )
+            .openPopup();
+
+
+        showStatus(
+
+            "Location found. The nearest Salzburg hotel is " +
+
+            formatDistance(
+                nearest.distance
+            ) +
+
+            " away.",
+
+            "success",
+
+            4500
+        );
+
+    }
+
+    else {
+
+        /*
+           The browser may report a perfectly
+           valid location far outside Salzburg.
+
+           We still show it, but explain that the
+           hotel dataset only covers Salzburg.
+        */
+
+        map.setView(
+            [lat, lon],
+            14
+        );
+
+
+        currentLocationMarker
+            .bindPopup(
+
+                "<strong>Your reported location</strong><br>" +
+
+                "Browser accuracy: approximately " +
+
+                Math.round(accuracy) +
+
+                " metres.<br><br>" +
+
+                "<strong>Outside Salzburg hotel coverage.</strong><br>" +
+
+                "Use the 🏨 button to return to the Salzburg hotels."
+
+            )
+            .openPopup();
+
+
+        showStatus(
+
+            "Your reported location is outside the Salzburg hotel coverage area. " +
+            "Use the 🏨 button to return to Salzburg.",
+
+            "normal",
+
+            6000
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   10. LOCATION ERROR
+========================================================= */
+
+function handleLocationError(error) {
+
+    let message =
+        "Your current location could not be determined.";
+
+
+    if (error.code === 1) {
+
+        message =
+            "Location permission was denied. Please allow location access in your browser.";
+
+    }
+
+
+    else if (error.code === 2) {
+
+        message =
+            "Your device could not determine its current location.";
+
+    }
+
+
+    else if (error.code === 3) {
+
+        message =
+            "Location request timed out. Please try again.";
+
+    }
+
+
+    showStatus(
+        message,
+        "error",
+        6000
+    );
+
+}
+
+
+/* =========================================================
+   11. DISTANCE CALCULATION
+========================================================= */
+
+function updateHotelDistances(
+    userLat,
+    userLon
+) {
+
+    hotels.forEach(
+        function(hotel) {
+
+            hotel.distance =
+                calculateDistanceKm(
+                    userLat,
+                    userLon,
+                    hotel.lat,
+                    hotel.lon
+                );
+
+        }
+    );
+
+}
+
+
+/*
+   Haversine distance.
+
+   This represents straight-line geographic
+   distance, NOT driving distance.
+*/
+
+function calculateDistanceKm(
+    lat1,
+    lon1,
+    lat2,
+    lon2
+) {
+
+    const earthRadius =
+        6371;
+
+
+    const dLat =
+        toRadians(
+            lat2 - lat1
+        );
+
+
+    const dLon =
+        toRadians(
+            lon2 - lon1
+        );
+
+
+    const a =
+
+        Math.sin(dLat / 2) *
+        Math.sin(dLat / 2) +
+
+        Math.cos(
+            toRadians(lat1)
+        ) *
+
+        Math.cos(
+            toRadians(lat2)
+        ) *
+
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+
+
+    const c =
+        2 *
+        Math.atan2(
+            Math.sqrt(a),
+            Math.sqrt(1 - a)
+        );
+
+
+    return earthRadius * c;
+
+}
+
+
+function toRadians(value) {
+
+    return value *
+        Math.PI /
+        180;
+
+}
+
+
+/* =========================================================
+   12. NEAREST HOTEL
+========================================================= */
+
+function findNearestHotel() {
+
+    if (!hotels.length) {
+
+        return null;
+
+    }
+
+
+    let nearest =
+        null;
+
+
+    hotels.forEach(
+        function(hotel) {
+
+
+            if (
+                hotel.distance === null ||
+                !Number.isFinite(
+                    hotel.distance
+                )
+            ) {
+
+                return;
+
+            }
+
+
+            if (
+                !nearest ||
+                hotel.distance <
+                nearest.distance
+            ) {
+
+                nearest =
+                    hotel;
+
+            }
+
+        }
+    );
+
+
+    return nearest;
+
+}
+
+
+/* =========================================================
+   13. RETURN TO SALZBURG
+========================================================= */
+
+function returnToHotels() {
+
+    if (
+        hotelBounds &&
+        hotelBounds.isValid()
+    ) {
+
+        map.fitBounds(
+            hotelBounds,
+            {
+                padding:
+                    [35, 35],
+
+                maxZoom:
+                    13
+            }
+        );
+
+    }
+
+    else {
+
+        map.setView(
+            SALZBURG_CENTER,
+            SALZBURG_ZOOM
+        );
+
+    }
+
+
+    showStatus(
+        "Showing Salzburg tourist hotels.",
+        "success",
+        2500
+    );
+
+}
+
+
+/* =========================================================
+   14. LOCATION CONTROL
+========================================================= */
+
+const LocationControl =
+    L.Control.extend({
+
+        options: {
+            position:
+                "topleft"
+        },
+
+
+        onAdd: function() {
+
+            const container =
+                L.DomUtil.create(
+                    "div",
+                    "custom-map-control"
+                );
+
+
+            const image =
+                document.createElement(
+                    "img"
+                );
+
+
+            image.src =
+                "assets/images/current-location.png";
+
+
+            image.alt =
+                "My location";
+
+
+            container.appendChild(
+                image
+            );
+
+
+            container.title =
+                "Find my current location";
+
+
+            container.setAttribute(
+                "role",
+                "button"
+            );
+
+
+            container.setAttribute(
+                "aria-label",
+                "Find my current location"
+            );
+
+
+            L.DomEvent.disableClickPropagation(
+                container
+            );
+
+
+            L.DomEvent.on(
+                container,
+                "click",
+                function() {
+
+                    locateUser();
+
+                }
+            );
+
+
+            return container;
+
+        }
+
+    });
+
+
+map.addControl(
+    new LocationControl()
+);
+
+
+/* =========================================================
+   15. RETURN TO HOTELS CONTROL
+========================================================= */
+
+const HotelsControl =
+    L.Control.extend({
+
+        options: {
+            position:
+                "topleft"
+        },
+
+
+        onAdd: function() {
+
+            const container =
+                L.DomUtil.create(
+                    "div",
+                    "custom-map-control"
+                );
+
+
+            container.innerHTML =
+                "🏨";
+
+
+            container.title =
+                "Show all Salzburg hotels";
+
+
+            container.setAttribute(
+                "role",
+                "button"
+            );
+
+
+            container.setAttribute(
+                "aria-label",
+                "Show all Salzburg hotels"
+            );
+
+
+            L.DomEvent.disableClickPropagation(
+                container
+            );
+
+
+            L.DomEvent.on(
+                container,
+                "click",
+                function() {
+
+                    returnToHotels();
+
+                }
+            );
+
+
+            return container;
+
+        }
+
+    });
+
+
+map.addControl(
+    new HotelsControl()
+);
+
+
+/* =========================================================
+   16. HELP / INFORMATION CONTROL
+========================================================= */
+
+const InfoControl =
+    L.Control.extend({
+
+        options: {
+            position:
+                "bottomleft"
+        },
+
+
+        onAdd: function() {
+
+            const container =
+                L.DomUtil.create(
+                    "div",
+                    "custom-map-control"
+                );
+
+
+            container.innerHTML =
+                "ⓘ";
+
+
+            container.title =
+                "Map information";
+
+
+            L.DomEvent.disableClickPropagation(
+                container
+            );
+
+
+            L.DomEvent.on(
+                container,
+                "click",
+                function() {
+
+                    showStatus(
+    "Hotel locations are derived from OpenStreetMap. " +
+    "The location button uses coordinates reported by your browser/device and may not always reflect your precise physical location. " +
+    "Hotel distances are straight-line geographic distances.",
+    "normal",
+    7000
+);
+
+                }
+            );
+
+
+            return container;
+
+        }
+
+    });
+
+
+map.addControl(
+    new InfoControl()
+);
+
+
+/* =========================================================
+   17. STATUS MESSAGE
+========================================================= */
+
+let statusTimer =
+    null;
+
+
+function showStatus(
+    message,
+    type = "normal",
+    duration = 0
+) {
+
+    const box =
+        document.getElementById(
+            "statusBox"
+        );
+
+
+    if (statusTimer) {
+
+        clearTimeout(
+            statusTimer
+        );
+
+    }
+
+
+    box.style.display =
+        "block";
+
+
+    box.textContent =
+        message;
+
+
+    if (type === "error") {
+
+        box.style.color =
+            "#a61b1b";
+
+    }
+
+
+    else if (type === "success") {
+
+        box.style.color =
+            "#245c3a";
+
+    }
+
+
+    else {
+
+        box.style.color =
+            "#34495e";
+
+    }
+
+
+    if (duration > 0) {
+
+        statusTimer =
+            setTimeout(
+                function() {
+
+                    box.style.display =
+                        "none";
+
+                },
+                duration
+            );
+
+    }
+
+}
+
+
+/* =========================================================
+   18. HELPERS
+========================================================= */
+
+function getHotelName(hotel) {
+
+    const p =
+        hotel.properties || {};
+
+
+    return (
+        p.name ||
+        p["name:en"] ||
+        "Hotel"
+    );
+
+}
+
+
+function formatDistance(km) {
+
+    if (km < 1) {
+
+        return (
+            Math.round(km * 1000) +
+            " m"
+        );
+
+    }
+
+
+    if (km < 10) {
+
+        return (
+            km.toFixed(1) +
+            " km"
+        );
+
+    }
+
+
+    return (
+        Math.round(km) +
+        " km"
+    );
+
+}
+
+
+function escapeHTML(value) {
+
+    return String(value)
+
+        .replace(/&/g, "&amp;")
+
+        .replace(/</g, "&lt;")
+
+        .replace(/>/g, "&gt;")
+
+        .replace(/"/g, "&quot;")
+
+        .replace(/'/g, "&#039;");
+
+}
+
+
+function escapeAttribute(value) {
+
+    return escapeHTML(value);
+
+}
+
+
+/* =========================================================
+   19. START APPLICATION
+========================================================= */
+
+loadHotels();
+
+</script>
+
+</body>
+</html>
